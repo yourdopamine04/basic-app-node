@@ -59,7 +59,7 @@ jobs:
         run: |
           docker build \
             -t "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPOSITORY}/backend:${IMAGE_TAG}" \
-            ./backend
+            .
           docker push "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPOSITORY}/backend:${IMAGE_TAG}"
 
       - name: Deploy backend to Cloud Run
