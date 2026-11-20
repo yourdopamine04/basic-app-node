@@ -9,7 +9,7 @@ env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'gcp-devops-lab-514504' }}
   WIF_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
   WIF_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT || secrets.GCP_SERVICE_ACCOUNT }}
-  ARTIFACT_REPOSITORY: repo-basic-app
+  ARTIFACT_REPOSITORY: basic-app
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
             echo "::error::GCP_SERVICE_ACCOUNT is missing. Add it as a repository variable or secret."
             exit 1
           fi
-
+#t
 # Authenticate to Google Cloud using Workload Identity Federation
       - name: Authenticate to Google Cloud
         id: auth

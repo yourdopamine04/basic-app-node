@@ -21,12 +21,12 @@ variable "image-backend" {
 
 variable "artifact_repository_id" {
   type    = string
-  default = "basic-app"
+  default = "repo-basic-app"
 }
 
 
 variable "github_repository" {
   type        = string
   description = "GitHub repository in owner/repository format"
-  default     = "yourdopamine04/test"
+  default     = "yourdopamine04/basic-app-node"
 }
