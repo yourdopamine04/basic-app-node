@@ -1,0 +1,81 @@
+name: Build, push, and deploy
+
+on:
+  push:
+    branches: ["main"]
+
+env:
+  REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'gcp-devops-lab-514504' }}
+  WIF_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+  WIF_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT || secrets.GCP_SERVICE_ACCOUNT }}
+  ARTIFACT_REPOSITORY: repo-basic-app
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Validate WIF configuration
+        shell: bash
+        run: |
+          if [ -z "${WIF_PROVIDER}" ]; then
+            echo "::error::GCP_WORKLOAD_IDENTITY_PROVIDER is missing. Add it as a repository variable or secret."
+            exit 1
+          fi
+          if [ -z "${WIF_SERVICE_ACCOUNT}" ]; then
+            echo "::error::GCP_SERVICE_ACCOUNT is missing. Add it as a repository variable or secret."
+            exit 1
+          fi
+
+# Authenticate to Google Cloud using Workload Identity Federation
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+
+#agar memakai gcloud cli dan seting project id kita 
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+#agar github action push dan pull tanpa login manual ke artifact registry
+      - name: Configure Artifact Registry Docker authentication
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+
+      - name: Build and push backend
+        run: |
+          docker build \
+            -t "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPOSITORY}/backend:${IMAGE_TAG}" \
+            ./backend
+          docker push "${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPOSITORY}/backend:${IMAGE_TAG}"
+
+      - name: Deploy backend to Cloud Run
+        run: |
+          gcloud run deploy backend-instance \
+            --region="${REGION}" \
+            --image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPOSITORY}/backend:${IMAGE_TAG}" \
+            --platform=managed \
+            --port=3000 \
+            --allow-unauthenticated \
+            --set-env-vars=NODE_ENV=production
+
+      - name: Read backend Cloud Run URL
+        id: backend
+        run: |
+          BACKEND_URL="$(gcloud run services describe backend-instance \
+            --region="${REGION}" \
+            --format='value(status.url)')"
+          echo "url=${BACKEND_URL}" >> "$GITHUB_OUTPUT"
